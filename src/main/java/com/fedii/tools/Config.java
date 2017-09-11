@@ -10,21 +10,31 @@ import java.util.Properties;
  * Created by sfedii on 2/29/16.
  */
 public class Config {
-
-
-    static {
-        POLLING_PERIOD = getLong("polling_period");
-        LOCATION_TIMEOUT = getLong("location_timeout");
-    }
-
-    public static final long POLLING_PERIOD;
-    public static final long LOCATION_TIMEOUT;
     private static Config instance;
+    private Properties properties;
+
+    public static final long POLLING_PERIOD = Long.parseLong(getInstance().getProperty("polling_period"));
+    public static final long LOCATION_TIMEOUT = Long.parseLong(getInstance().getProperty("location_timeout"));
+
+    /**
+     * Used to retrieve an instance of the Configuration class.
+     *
+     * @return instance of {@link Config}
+     */
+    public static Config getInstance() {
+        if (instance == null) {
+            instance = new Config();
+        }
+
+        return instance;
+    }
 
     private Config() {
         properties = new Properties();
         try {
-            InputStream stream = getClass().getClassLoader().getResourceAsStream("config.properties");
+            InputStream stream = getClass()
+                    .getClassLoader()
+                    .getResourceAsStream("config.properties");
             properties.load(stream);
             stream.close();
         } catch (IOException e) {
@@ -32,29 +42,23 @@ public class Config {
         }
     }
 
-    public static Credentials getDefaultCredentials() {
+    public Credentials getDefaultCredentials() {
         return new Credentials(getProperty("username"), getProperty("password"));
     }
 
-    public static long getLong(String key) {
-        return Long.parseLong(properties.getProperty(key));
+    public String getInstanceUnderTest() {
+        return System.getProperty("environment");
     }
 
-    public static String getProperty(String key) {
+    public String getBrowser() {
+        return getProperty("browser");
+    }
+
+    public String getProperty(String key) {
         return properties.getProperty(key);
     }
 
-    public static String getRecruiterUrl() {
-        return properties.getProperty("recruiterurl");
-    }
-
-    public static String getJobSeekerUrl() {
-        return properties.getProperty("jobseekerurl");
-    }
-
-    static Properties properties = new Properties();
-
-    static {
-        instance = new Config();
+    public String getAmazonUrl() {
+        return getProperty("amazon-url");
     }
 }

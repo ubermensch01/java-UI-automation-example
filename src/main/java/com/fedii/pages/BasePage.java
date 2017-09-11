@@ -1,18 +1,24 @@
 package com.fedii.pages;
 
 import com.fedii.tools.Config;
-import com.google.common.base.Function;
+import io.qameta.allure.Attachment;
 import org.apache.log4j.Logger;
 import org.openqa.selenium.*;
 import org.openqa.selenium.internal.WrapsDriver;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.FluentWait;
-import org.openqa.selenium.support.ui.Select;
-import org.openqa.selenium.support.ui.Wait;
-import ru.yandex.qatools.allure.annotations.Attachment;
+import org.openqa.selenium.support.ui.*;
+import ru.yandex.qatools.ashot.AShot;
+import ru.yandex.qatools.ashot.Screenshot;
+import ru.yandex.qatools.ashot.coordinates.WebDriverCoordsProvider;
+import ru.yandex.qatools.ashot.cropper.indent.IndentCropper;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static ru.yandex.qatools.ashot.cropper.indent.IndentFilerFactory.blur;
 
 /**
  * Created by sfedii on 2/29/16.
@@ -28,16 +34,7 @@ public class BasePage {
     public WebElement find(By locator) {
         logger.info(String.format("Locating element '%s'", locator.toString()));
 
-        return new FluentWait<>(driver)
-                .withTimeout(Config.LOCATION_TIMEOUT, TimeUnit.MILLISECONDS)
-                .pollingEvery(Config.POLLING_PERIOD, TimeUnit.MILLISECONDS)
-                .ignoring(NoSuchElementException.class)
-                .until(new Function<WebDriver, WebElement>() {
-                    @Override
-                    public WebElement apply(WebDriver driver) {
-                        return driver.findElement(locator);
-                    }
-                });
+        return new WebDriverWait(driver, Config.POLLING_PERIOD).until(ExpectedConditions.presenceOfElementLocated(locator));
     }
 
     public List<WebElement> findList(By locator) {
@@ -50,15 +47,11 @@ public class BasePage {
                              By locator) {
         logger.info(String.format("Locating element '%s' in element %s", locator.toString(), element.toString()));
 
-        return new FluentWait<>(element)
+        return new WebDriverWait(driver, Config.POLLING_PERIOD)
                 .withTimeout(Config.LOCATION_TIMEOUT, TimeUnit.MILLISECONDS)
                 .pollingEvery(Config.POLLING_PERIOD, TimeUnit.MILLISECONDS)
                 .ignoring(NoSuchElementException.class)
-                .until(new Function<WebElement, WebElement>() {
-                    public WebElement apply(WebElement webElement) {
-                        return webElement.findElement(locator);
-                    }
-                });
+                .until(ExpectedConditions.presenceOfElementLocated(locator));
     }
 
     public void click(By locator) {
@@ -103,6 +96,38 @@ public class BasePage {
         return ((TakesScreenshot) driver).getScreenshotAs(OutputType.BYTES);
     }
 
+    @Attachment
+    protected byte[] screenshot(By highlightedLocator) {
+        logger.info(String.format("Taking a screenshot of current page (%s)", driver.getTitle()));
+
+        return convert(new AShot()
+                .imageCropper(new IndentCropper()
+                        .addIndentFilter(blur()))
+                .coordsProvider(new WebDriverCoordsProvider())
+                .takeScreenshot(driver, find(highlightedLocator)));
+    }
+
+    private byte[] convert(Screenshot screenshot) {
+        return convert(screenshot.getImage());
+    }
+
+    private byte[] convert(BufferedImage image) {
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] imageInByte = null;
+
+        try {
+            ImageIO.write(image, "png", baos);
+            baos.flush();
+            imageInByte = baos.toByteArray();
+            baos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return imageInByte;
+    }
+
     protected WebElement waitForElementToBeVisible(final By locator) {
         Wait<WebDriver> wait = new FluentWait<>(driver)
                 .withTimeout(10, TimeUnit.SECONDS)
@@ -111,7 +136,7 @@ public class BasePage {
         return wait.until(ExpectedConditions.visibilityOf(find(locator)));
     }
 
-    private Select getSelect(By locator) {
+    protected Select getSelect(By locator) {
         return new Select(find(locator));
     }
 
